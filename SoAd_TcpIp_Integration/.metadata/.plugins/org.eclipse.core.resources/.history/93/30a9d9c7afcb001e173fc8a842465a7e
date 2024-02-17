@@ -1,0 +1,303 @@
+#include "SoAd.h"
+#include "PduR_Cbk.h"
+
+struct {
+	uint32	numOfTxPduIds;
+	boolean	SoAd_Initialized;
+	struct{
+		TcpIp_SocketIdType	tcpipsocketID;
+		SoAd_SoConModeType	socketMode;
+		TcpIp_ProtocolType	protocol;
+		Soad_SocketState	state;
+		SoAd_SocketConnectionGroupType	sockConnectionGroup;
+		TcpIp_LocalAddrIdType	localAddrId;
+		SoAd_SocketTcpType		sockTcpConfig;
+		boolean	TpCancelRecieveFlag;
+		boolean	TpCancelTransmitFlag;
+		PduIdType	PduTxID;
+		PduIdType	PduRxID;
+		struct{
+			boolean acquired;
+			uint8* bufferPtr;
+			uint16 bufferPtrIdx;
+			boolean buffReady;
+		}SoAd_Buffer;
+	}SoadSocketList[SoAdSoConMax];
+}SoadSocketsConfig;
+
+//el mfrud hn3ml sockConnectionGroup configuration w n3ml assign l kol socket l group menhum
+//el pdu id hy7dd kol pdu htnzl 3la anhy socket "el mfrud dah el fahmo"
+
+void SoAd_Init (const SoAd_ConfigType* SoAdConfigPtr){
+	SoadSocketsConfig.SoAd_Initialized = TRUE;
+	SoadSocketsConfig.SoadSocketList[0].socketMode = SOAD_SOCON_OFFLINE;
+	SoadSocketsConfig.SoadSocketList[0].protocol = TCPIP_IPPROTO_TCP;
+	SoadSocketsConfig.SoadSocketList[0].state = SOCKET_NOT_USED;
+
+	SoadSocketsConfig.SoadSocketList[0].sockTcpConfig.SoAdSocketTcpInitiate =
+			SoAdConfigPtr->SoAd_SockConnGroup[0].SoAd_SocketProtocol.SoAd_SocketTcpConfig.SoAdSocketTcpInitiate;
+	SoadSocketsConfig.SoadSocketList[0].sockConnectionGroup.SoAdSocketLocalPort = \
+			SoAdConfigPtr->SoAd_SockConnGroup[0].SoAdSocketLocalPort;
+	SoadSocketsConfig.SoadSocketList[0].sockConnectionGroup.SoAd_SocketConnection.SoAd_SocketRemoteAddress.Domain = \
+			SoAdConfigPtr->SoAd_SockConnGroup[0].SoAd_SocketConnection.SoAd_SocketRemoteAddress.Domain;
+	for(int i = 0; i < 4; i++ ){
+	SoadSocketsConfig.SoadSocketList[0].sockConnectionGroup.SoAd_SocketConnection.SoAd_SocketRemoteAddress.SoAdSocketRemoteIpAddress[i] = \
+				SoAdConfigPtr->SoAd_SockConnGroup[0].SoAd_SocketConnection.SoAd_SocketRemoteAddress.SoAdSocketRemoteIpAddress[i];
+	}
+	SoadSocketsConfig.SoadSocketList[0].sockConnectionGroup.SoAd_SocketConnection.SoAd_SocketRemoteAddress.SoAdSocketRemotePort = \
+				SoAdConfigPtr->SoAd_SockConnGroup[0].SoAd_SocketConnection.SoAd_SocketRemoteAddress.SoAdSocketRemotePort;
+}
+
+Std_ReturnType SoAd_OpenSoCon(SoAd_SoConIdType SoConId){
+
+	uint8 error_code;
+	if(FALSE == SoadSocketsConfig.SoAd_Initialized){
+		/*Det Error */
+		return E_NOT_OK;
+	}
+
+	if(SoAdSoConMax <= SoConId){
+		/*Det Error */
+		return E_NOT_OK;
+	}
+
+	if(SoAdSocketAutomaticSoConSetup == TRUE){
+		/*Det Error */
+		return E_NOT_OK;
+	}
+
+	if(SoadSocketsConfig.SoadSocketList[SoConId].socketMode == SOAD_SOCON_OFFLINE)
+	{
+		SoadSocketsConfig.SoadSocketList[SoConId].state = SOCKET_CREATE;
+	}
+	else{
+		return E_NOT_OK;
+	}
+	return E_OK;
+}
+
+
+void SoAd_MainFunction(void){
+
+	SoAd_SoConIdType socketInd;
+	SoAd_SoConIdType socketAcquiredInd;
+	Std_ReturnType ret;
+	TcpIp_SockAddrType* genericAddress;
+	for(socketInd = 0; socketInd < SoAdSoConMax; socketInd++){
+		if(SoadSocketsConfig.SoadSocketList[socketInd].socketMode == SOAD_SOCON_OFFLINE \
+				&& SoadSocketsConfig.SoadSocketList[socketInd].state != SOCKET_CREATE){
+
+		}else{
+			if(SoadSocketsConfig.SoadSocketList[socketInd].state != SOCKET_Aquired && \
+					SoadSocketsConfig.SoadSocketList[socketInd].state != SOCKET_InUse){
+				if(SoadSocketsConfig.SoadSocketList[socketInd].state == SOCKET_CREATE){
+					ret = TcpIp_SoAdGetSocket(SoadSocketsConfig.SoadSocketList[socketInd].sockConnectionGroup.SoAd_SocketConnection.SoAd_SocketRemoteAddress.Domain, \
+							SoadSocketsConfig.SoadSocketList[socketInd].protocol, &socketAcquiredInd);
+
+
+					if(ret == E_OK){
+						SoadSocketsConfig.SoadSocketList[socketInd].tcpipsocketID = socketAcquiredInd;
+						if(SoadSocketsConfig.SoadSocketList[socketInd].protocol == TCPIP_IPPROTO_TCP){
+							SoadSocketsConfig.SoadSocketList[socketInd].socketMode = SOAD_SOCON_RECONNECT;
+							SoadSocketsConfig.SoadSocketList[socketInd].state = SOCKET_InUse;
+						}
+					}
+
+					ret = TcpIp_Bind(SoadSocketsConfig.SoadSocketList[socketInd].tcpipsocketID
+							,SoadSocketsConfig.SoadSocketList[socketInd].sockConnectionGroup.SoAdSocketLocalAddressRef.TcpIpAddrId
+							,&(SoadSocketsConfig.SoadSocketList[socketInd].sockConnectionGroup.SoAdSocketLocalPort));
+
+					if(TRUE == SoadSocketsConfig.SoadSocketList[socketInd].sockTcpConfig.SoAdSocketTcpInitiate){
+						genericAddress = (TcpIp_SockAddrType*)&(SoadSocketsConfig.SoadSocketList[socketInd].sockConnectionGroup.SoAd_SocketConnection.SoAd_SocketRemoteAddress);
+						ret = TcpIp_TcpConnect(SoadSocketsConfig.SoadSocketList[socketInd].tcpipsocketID, genericAddress);
+					}
+					else{
+						ret = TcpIp_TcpListen (SoadSocketsConfig.SoadSocketList[socketInd].tcpipsocketID, SoAdSoConMax);
+					}
+				}
+			}
+		}
+	}
+}
+
+Std_ReturnType SoAd_TcpAccepted (TcpIp_SocketIdType SocketId,
+		TcpIp_SocketIdType SocketIdConnected,const TcpIp_SockAddrType* RemoteAddrPtr){
+
+	SoAd_SoConIdType	index;
+	SoAd_SoConIdType	id;
+
+	if(FALSE == SoadSocketsConfig.SoAd_Initialized){
+		/*
+            Det Error
+		 */
+	}
+
+	if(SocketId >= TcpIpTcpSocketMax){
+		/*
+            Det Error
+		 */
+	}
+
+	for(index = 0; index < SoAdSoConMax; index++){
+		if(SoadSocketsConfig.SoadSocketList[index].tcpipsocketID == SocketId )
+		{
+			id = index;
+			SoadSocketsConfig.SoadSocketList[id].socketMode = SOAD_SOCON_ONLINE;
+			SoadSocketsConfig.SoadSocketList[id].state = SOCKET_Aquired;
+			break;
+		}
+	}
+	PduR_SoConModeChg (id, SOAD_SOCON_ONLINE);
+
+	return E_OK;
+}
+
+void SoAd_TcpConnected (TcpIp_SocketIdType SocketId){
+
+	SoAd_SoConIdType	index;
+	SoAd_SoConIdType	id;
+
+	if(FALSE == SoadSocketsConfig.SoAd_Initialized){
+		/*
+            Det Error
+		 */
+	}
+
+	if(SocketId >= TcpIpTcpSocketMax){
+		/*
+            Det Error
+		 */
+	}
+
+	for(index = 0; index < SoAdSoConMax; index++){
+		if(SoadSocketsConfig.SoadSocketList[index].tcpipsocketID == SocketId )
+		{
+			id = index;
+			SoadSocketsConfig.SoadSocketList[id].socketMode = SOAD_SOCON_ONLINE;
+			SoadSocketsConfig.SoadSocketList[index].state = SOCKET_Aquired;
+			break;
+		}
+	}
+	PduR_SoConModeChg(id, SOAD_SOCON_ONLINE);
+}
+
+void SoAd_TxConfirmation (TcpIp_SocketIdType SocketId, uint16 Length){
+	if(TcpIpTcpSocketMax <= SocketId){
+		/*
+        Det Error
+		 */
+	}
+
+	if(FALSE == SoadSocketsConfig.SoAd_Initialized){
+		/*
+        Det Error
+		 */
+	}
+	SoAd_SoConIdType	index;
+	SoAd_SoConIdType	id;
+	for(index = 0; index < SoAdSoConMax; index++){
+		if(SoadSocketsConfig.SoadSocketList[index].tcpipsocketID == SocketId )
+		{
+			id = index;
+			break;
+		}
+	}
+	PduIdType PduId = SoadSocketsConfig.SoadSocketList[id].PduTxID;
+	PduR_SoAdIfTxConfirmation (PduId, E_OK);
+}
+
+
+Std_ReturnType ExtractDataTo_SoAdBuffer(SoAd_SoConIdType socketInd, const uint8* DataPtr, uint32 DataLength){
+
+	SoadSocketsConfig.SoadSocketList[socketInd].SoAd_Buffer.acquired = TRUE;
+	uint16 bufferCtr = SoadSocketsConfig.SoadSocketList[socketInd].SoAd_Buffer.bufferPtrIdx;
+	uint16 dataCtr = 0;
+
+	for(bufferCtr; dataCtr < (DataLength); bufferCtr++, dataCtr++){
+		*(SoadSocketsConfig.SoadSocketList[socketInd].SoAd_Buffer.bufferPtr + bufferCtr) = *(DataPtr+dataCtr);
+	}
+	SoadSocketsConfig.SoadSocketList[socketInd].SoAd_Buffer.bufferPtrIdx = bufferCtr;
+	dataCtr = 0;
+
+	SoadSocketsConfig.SoadSocketList[socketInd].SoAd_Buffer.buffReady = TRUE;
+
+	return E_OK;
+}
+
+void SoAd_RxIndication (TcpIp_SocketIdType SocketId ,const TcpIp_SockAddrType* RemoteAddrPtr
+		,const uint8* BufPtr, uint16 Length)
+{
+	TcpIp_SockAddrInetType* remoteAdr = (TcpIp_SockAddrInetType*)RemoteAddrPtr;
+	SoAd_SoConIdType socketInd;
+	PduIdType	RxPduId;
+	PduInfoType* PduInfoPtr;
+	Std_ReturnType ret;
+	for(socketInd = 0; socketInd < SoAdSoConMax; socketInd++){
+
+		if(SoadSocketsConfig.SoadSocketList[socketInd].tcpipsocketID == SocketId){
+			ExtractDataTo_SoAdBuffer(socketInd, BufPtr, Length);
+			RxPduId = SoadSocketsConfig.SoadSocketList[socketInd].PduTxID+1;/*Ay habd*/
+			PduInfoPtr->SduDataPtr = SoadSocketsConfig.SoadSocketList[socketInd].SoAd_Buffer.bufferPtr;
+			PduInfoPtr->SduLength = Length;
+		}
+	}
+
+	PduR_SoAdIfRxIndication ( RxPduId , PduInfoPtr);
+	SoadSocketsConfig.SoadSocketList[socketInd].SoAd_Buffer.acquired = FALSE;
+	SoadSocketsConfig.SoadSocketList[socketInd].SoAd_Buffer.buffReady = FALSE;
+	TcpIp_TcpReceived(SoadSocketsConfig.SoadSocketList[socketInd].tcpipsocketID, Length);
+
+}
+
+Std_ReturnType SoAd_IfTransmit (PduIdType TxPduId, const PduInfoType* PduInfoPtr)
+{
+	SoAd_SoConIdType	soadSockid;
+
+	if(TxPduId < SoadSocketsConfig.numOfTxPduIds){
+		return E_NOT_OK;
+	}
+	boolean forceRetrieve = TRUE;
+
+	if(TxPduId < 100){
+		soadSockid = 0;
+		SoadSocketsConfig.SoadSocketList[soadSockid].PduTxID = TxPduId;
+	}else{
+
+	}
+
+	if(SoadSocketsConfig.SoadSocketList[soadSockid].socketMode == SOAD_SOCON_ONLINE){
+		switch(SoadSocketsConfig.SoadSocketList[soadSockid].protocol){
+		case TCPIP_IPPROTO_TCP:
+			TcpIp_TcpTransmit(SoadSocketsConfig.SoadSocketList[soadSockid].sockConnectionGroup.SoAd_SocketConnection.SoAdSocketId
+					,PduInfoPtr->SduDataPtr
+					,PduInfoPtr->SduLength
+					,forceRetrieve);
+			break;
+		case TCPIP_IPPROTO_UDP:
+			break;
+		}
+	}
+	return E_OK;
+}
+
+Std_ReturnType SoAd_TpCancelTransmit (PduIdType TxPduId )
+{
+	SoAd_SoConIdType	id;
+	if(TxPduId < 100){
+		id = 0;
+	}
+	SoadSocketsConfig.SoadSocketList[id].TpCancelTransmitFlag = TRUE;
+
+	return E_OK;
+}
+
+Std_ReturnType SoAd_TpCancelReceive ( PduIdType RxPduId )
+{
+	SoAd_SoConIdType	id;
+	if(RxPduId < 100){
+		id = 0;
+	}
+	SoadSocketsConfig.SoadSocketList[id].TpCancelRecieveFlag = TRUE;
+
+	return E_OK;
+}

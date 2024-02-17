@@ -1,0 +1,15 @@
+TcpIp.c:13:27:getAvailableSocket	16	static
+TcpIp.c:43:23:TcpIp_GetPacket_Header	56	static
+TcpIp.c:91:23:TcpIp_GetPacket	32	static
+TcpIp.c:114:23:TcpIp_DecodePacket	24	static
+TcpIp.c:149:13:TcpIp_EthIf_CopyToBuffer	32	static
+TcpIp.c:159:6:TcpIp_Init	16	static
+TcpIp.c:166:16:TcpIp_Close	16	static
+TcpIp.c:205:16:TcpIp_SoAdGetSocket	24	static
+TcpIp.c:251:16:TcpIp_Bind	24	static
+TcpIp.c:300:16:TcpIp_TcpConnect	24	static
+TcpIp.c:380:16:TcpIp_TcpListen	24	static
+TcpIp.c:408:16:TcpIp_TcpTransmit	24	static
+TcpIp.c:430:6:TcpIp_MainFunction	80	static
+TcpIp.c:606:6:TcpIp_RxIndication	24	static
+TcpIp.c:762:16:TcpIp_TcpReceived	16	static

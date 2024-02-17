@@ -1,0 +1,4 @@
+PduR.c:16:6:PduR_SoAdIfRxIndication	16	static
+PduR.c:21:6:PduR_SoAdIfTxConfirmation	16	static
+PduR.c:25:6:PduR_LocalIpAddrAssignmentChg	16	static
+PduR.c:29:6:PduR_SoConModeChg	16	static

@@ -1,0 +1,2 @@
+EthIf.c:11:6:EthIf_ProvideTxBuffer	24	static
+EthIf.c:17:6:EthIf_Transmit	40	static

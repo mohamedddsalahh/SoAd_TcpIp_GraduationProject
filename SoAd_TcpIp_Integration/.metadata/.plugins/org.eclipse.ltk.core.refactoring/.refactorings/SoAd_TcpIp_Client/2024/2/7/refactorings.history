@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;SoAd_TcpIp_Client/Stm32f103c6&apos; to &apos;Stm32f103c6_Drivers&apos;" description="Rename resource &apos;Stm32f103c6&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="Stm32f103c6" name="Stm32f103c6_Drivers" stamp="1707952297186" updateReferences="true"/>
+</session>

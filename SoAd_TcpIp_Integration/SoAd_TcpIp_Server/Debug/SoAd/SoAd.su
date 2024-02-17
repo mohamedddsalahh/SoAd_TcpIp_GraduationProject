@@ -1,0 +1,11 @@
+SoAd.c:32:6:SoAd_Init	24	static
+SoAd.c:52:16:SoAd_OpenSoCon	16	static
+SoAd.c:81:6:SoAd_MainFunction	24	static
+SoAd.c:124:16:SoAd_TcpAccepted	24	static
+SoAd.c:156:6:SoAd_TcpConnected	24	static
+SoAd.c:185:6:SoAd_TxConfirmation	24	static
+SoAd.c:211:16:ExtractDataTo_SoAdBuffer	32	static
+SoAd.c:228:6:SoAd_RxIndication	40	static
+SoAd.c:253:16:SoAd_IfTransmit	24	static
+SoAd.c:287:16:SoAd_TpCancelTransmit	24	static
+SoAd.c:298:16:SoAd_TpCancelReceive	24	static

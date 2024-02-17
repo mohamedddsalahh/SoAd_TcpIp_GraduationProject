@@ -1,0 +1,10 @@
+21:29:51 **** Incremental Build of configuration Debug for project SoAd_TcpIp_Client ****
+make -j8 all 
+arm-none-eabi-size   SoAd_TcpIp_Client.elf 
+   text	   data	    bss	    dec	    hex	filename
+   9488	    152	   6432	  16072	   3ec8	SoAd_TcpIp_Client.elf
+Finished building: default.size.stdout
+ 
+
+21:29:51 Build Finished. 0 errors, 0 warnings. (took 250ms)
+
